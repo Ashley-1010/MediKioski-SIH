@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from models.models import Encounter, MedicalDocument, AuditLog
 from services.security import require_roles
-from storage.file_storage import save_upload
+from backend.services.file_storage import save_upload
 from ocr.document_ocr import extract_text
 router=APIRouter(tags=["Documents"])
 
@@ -31,7 +31,7 @@ def list_docs(encounter_id:int,db:Session=Depends(get_db),user=Depends(require_r
 def get_file(document_id:int,db:Session=Depends(get_db),user=Depends(require_roles("doctor","admin"))):
     d=db.get(MedicalDocument,document_id)
     if not d: raise HTTPException(404,"Document not found")
-    from storage.file_storage import BASE
+    from backend.services.file_storage import BASE
     path=BASE/d.storage_name
     if not path.exists(): raise HTTPException(404,"Stored file not found")
     return FileResponse(path,media_type=d.mime_type,filename=d.file_name)
