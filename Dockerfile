@@ -14,5 +14,5 @@ COPY backend .
 COPY --from=frontend /app/dist /app/dist
 RUN mkdir -p /app/backend/storage
 ENV STORAGE_DIR=/app/backend/storage
-EXPOSE 8000
-CMD ["uvicorn","main:app","--host","0.0.0.0","--port","8000"]
+EXPOSE 10000
+CMD ["uvicorn","main:app","--host","0.0.0.0","--port","10000"]
