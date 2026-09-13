@@ -15,6 +15,11 @@ import TechStack from './components/TechStack'
 import DataFlow from './components/DataFlow'
 import FutureScope from './components/FutureScope'
 import Footer from './components/Footer'
+import Login from './pages/Login'
+import StaffRegister from './pages/StaffRegister'
+import PatientRegister from './pages/PatientRegister'
+import PatientDashboard from './pages/PatientDashboard'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 
 function ScrollProgress() {
   const [progress, setProgress] = useState(0)
@@ -62,7 +67,7 @@ function ScrollToTop() {
   )
 }
 
-export default function App() {
+function Home() {
   return (
     <>
       <ScrollProgress />
@@ -84,5 +89,80 @@ export default function App() {
       <Footer />
       <ScrollToTop />
     </>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+
+        {/* HOME */}
+        <Route path="/" element={<Home />} />
+
+        {/* Authentication */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register/staff" element={<StaffRegister />} />
+        <Route path="/register/patient" element={<PatientRegister />} />
+
+        {/* Patient */}
+        <Route
+          path="/patient/dashboard"
+          element={<PatientDashboard />}
+        />
+
+        {/* Patient case-taking */}
+        <Route
+          path="/patient/registration/personal"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/consent"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/medical"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/ayurveda"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/documents"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/review"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration"
+          element={<Navigate
+                    to="/patient/registration/personal"
+                    replace
+                  />
+               }
+        />
+        {/* Receptionist */}
+        <Route
+          path="/reception/dashboard"
+          element={<ReceptionDashboard />}
+        />
+
+        {/* Doctor */}
+        <Route
+          path="/doctor/dashboard"
+          element={<DoctorDashboard />}
+        />
+
+        {/* Unknown URL */}
+        <Route
+          path="*"
+          element={<Navigate to="/" replace />}
+        />
+
+      </Routes>
+    </BrowserRouter>
   )
 }

@@ -8,6 +8,24 @@ class LoginRequest(BaseModel):
 class DemoLoginRequest(BaseModel):
     role: str = Field(pattern="^(doctor|receptionist)$")
 
+class StaffRegisterRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=100)
+    role: str = Field(pattern="^(doctor|receptionist)$")
+
+class PatientRegisterRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=100)
+    patient_code: str
+"""
+class PatientAccountRequest(BaseModel):
+    patient_code: str
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=100)
+"""
+
 class PatientIn(BaseModel):
     full_name: str = Field(min_length=2,max_length=200)
     date_of_birth: Optional[date]=None
