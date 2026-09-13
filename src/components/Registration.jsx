@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { FiUser, FiShield, FiFileText, FiHeart, FiUpload, FiCheckCircle, FiArrowRight, FiArrowLeft } from 'react-icons/fi'
 import useStore from '../store/useStore'
 
@@ -282,128 +283,414 @@ function StepReview({ data }) {
 }
 
 export default function Registration() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const { registrationStep, setRegistrationStep, patientData, updatePatientData, submitRegistration, patientId, registrationId, patients } = useStore()
   const setCurrentPage = useStore((s) => s.setCurrentPage)
   const myRecord = patients.find((p) => p.regId === registrationId)
 
+  const routes = [
+    '/patient/registration/personal',
+    '/patient/registration/consent',
+    '/patient/registration/medical',
+    '/patient/registration/ayurveda',
+    '/patient/registration/documents',
+    '/patient/registration/review'
+  ]
+
+  // Inside BrowserRouter (standalone route) the URL drives the step;
+  // in the deck (`/`) the store's registrationStep drives it.
+  const routerIndex = routes.indexOf(location.pathname)
+  const currentStep = routerIndex >= 0
+    ? routerIndex
+    : (typeof registrationStep === 'number' ? registrationStep : 0)
+
+  const goNext = () => {
+    if (currentStep === 0 && !patientData.fullName.trim()) {
+      alert('Please enter the patient name.')
+      return
+    }
+    if (currentStep === 1 && !patientData.consentGiven) {
+      alert('Please provide consent before continuing.')
+      return
+    }
+    if (currentStep < 5) {
+      if (routerIndex >= 0) navigate(routes[currentStep + 1])
+      else setRegistrationStep(currentStep + 1)
+    }
+  }
+
+  const goPrevious = () => {
+    if (currentStep > 0) {
+      if (routerIndex >= 0) navigate(routes[currentStep - 1])
+      else setRegistrationStep(currentStep - 1)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!patientData.consentGiven) {
+      alert('Patient consent is required.')
+      return
+    }
+    try {
+      await submitRegistration()
+    } catch (error) {
+      console.error('Registration failed:', error)
+      alert(error?.message || 'Registration failed. Please try again.')
+    }
+  }
+
   const renderStep = () => {
-    const props = { data: patientData, update: updatePatientData }
-    switch (registrationStep) {
-      case 0: return <StepPersonal {...props} />
-      case 1: return <StepConsent {...props} />
-      case 2: return <StepMedical {...props} />
-      case 3: return <StepAyurveda {...props} />
-      case 4: return <StepDocuments {...props} />
-      case 5: return <StepReview {...props} />
-      default: return null
+    const props = {
+      data: patientData,
+      update: updatePatientData
+    }
+
+    switch (currentStep) {
+      case 0:
+        return <StepPersonal {...props} />
+
+      case 1:
+        return <StepConsent {...props} />
+
+      case 2:
+        return <StepMedical {...props} />
+
+      case 3:
+        return <StepAyurveda {...props} />
+
+      case 4:
+        return <StepDocuments {...props} />
+
+      case 5:
+        return <StepReview {...props} />
+
+      default:
+        return <StepPersonal {...props} />
     }
   }
 
   return (
-    <section id="registration" style={{ padding: 'var(--section-padding)' }}>
+    <section
+      id="registration"
+      style={{
+        padding: 'var(--section-padding)'
+      }}
+    >
       <div className="container">
+
+        {/* Header */}
+
         <div className="section-header">
-          <div className="section-label">🧑‍⚕️ PATIENT REGISTRATION</div>
-          <h2 className="section-title">Register a New Patient</h2>
-          <p className="section-subtitle">Multi-step guided registration with medical history and Ayurveda assessment</p>
+
+          <div className="section-label">
+            🧑‍⚕️ PATIENT REGISTRATION
+          </div>
+
+          <h2 className="section-title">
+            Register a New Patient
+          </h2>
+
+          <p className="section-subtitle">
+            Multi-step guided registration with medical history
+            and Ayurveda assessment
+          </p>
+
         </div>
+
 
         {/* Step Indicator */}
-        <div style={{
-          display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 48, flexWrap: 'wrap',
-        }}>
-          {steps.map((s, i) => (
-            <div key={i} onClick={() => i <= registrationStep && setRegistrationStep(i)} style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
-              borderRadius: 100, cursor: i <= registrationStep ? 'pointer' : 'default',
-              background: i === registrationStep ? 'rgba(14,165,160,0.15)' : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${i === registrationStep ? 'var(--teal-400)' : i < registrationStep ? 'rgba(14,165,160,0.3)' : 'rgba(255,255,255,0.08)'}`,
-              transition: 'all 0.3s ease',
-            }}>
-              <span style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: i < registrationStep ? 'var(--teal-500)' : i === registrationStep ? 'var(--teal-400)' : 'rgba(255,255,255,0.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.75rem', fontWeight: 600, color: i <= registrationStep ? 'white' : 'var(--gray-500)',
-              }}>
-                {i < registrationStep ? '✓' : s.icon}
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 8,
+            marginBottom: 48,
+            flexWrap: 'wrap'
+          }}
+        >
+
+          {steps.map((step, index) => (
+
+            <div
+              key={index}
+              onClick={() => {
+                if (index <= currentStep) {
+                  if (routerIndex >= 0) navigate(routes[index])
+                  else setRegistrationStep(index)
+                }
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 16px',
+                borderRadius: 100,
+                cursor:
+                  index <= currentStep
+                    ? 'pointer'
+                    : 'default',
+
+                background:
+                  index === currentStep
+                    ? 'rgba(14,165,160,0.15)'
+                    : 'rgba(255,255,255,0.03)',
+
+                border:
+                  `1px solid ${
+                    index === currentStep
+                      ? 'var(--teal-400)'
+                      : index < currentStep
+                        ? 'rgba(14,165,160,0.3)'
+                        : 'rgba(255,255,255,0.08)'
+                  }`,
+
+                transition: 'all 0.3s ease'
+              }}
+            >
+
+              <span
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background:
+                    index < currentStep
+                      ? 'var(--teal-500)'
+                      : index === currentStep
+                        ? 'var(--teal-400)'
+                        : 'rgba(255,255,255,0.1)',
+
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+
+                  color:
+                    index <= currentStep
+                      ? 'white'
+                      : 'var(--gray-500)'
+                }}
+              >
+
+                {index < currentStep
+                  ? '✓'
+                  : step.icon}
+
               </span>
-              <span style={{
-                fontSize: '0.8rem', fontWeight: 500,
-                color: i === registrationStep ? 'var(--teal-300)' : i < registrationStep ? 'var(--gray-300)' : 'var(--gray-500)',
-              }}>{s.label}</span>
+
+
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+
+                  color:
+                    index === currentStep
+                      ? 'var(--teal-300)'
+                      : index < currentStep
+                        ? 'var(--gray-300)'
+                        : 'var(--gray-500)'
+                }}
+              >
+                {step.label}
+              </span>
+
             </div>
+
           ))}
+
         </div>
 
+
         {/* Step Content */}
-        <div className="glass-strong" style={{ padding: 'clamp(24px, 4vw, 40px)', maxWidth: 900, margin: '0 auto' }}>
+
+        <div
+          className="glass-strong"
+          style={{
+            padding: 'clamp(24px, 4vw, 40px)',
+            maxWidth: 900,
+            margin: '0 auto'
+          }}
+        >
+
           <AnimatePresence mode="wait">
+
             <motion.div
-              key={registrationStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              key={location.pathname}
+
+              initial={{
+                opacity: 0,
+                x: 20
+              }}
+
+              animate={{
+                opacity: 1,
+                x: 0
+              }}
+
+              exit={{
+                opacity: 0,
+                x: -20
+              }}
+
+              transition={{
+                duration: 0.3
+              }}
             >
+
               {renderStep()}
+
             </motion.div>
+
           </AnimatePresence>
 
           {/* Navigation — Next action is always the obvious one */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32 }}>
             <button
               className="btn-secondary"
-              onClick={() => registrationStep > 0 && setRegistrationStep(registrationStep - 1)}
-              style={{ opacity: registrationStep === 0 ? 0.3 : 1, pointerEvents: registrationStep === 0 ? 'none' : 'auto' }}
+              onClick={goPrevious}
+              disabled={currentStep === 0}
+              style={{
+                opacity:
+                  currentStep === 0
+                    ? 0.3
+                    : 1
+              }}
             >
-              <FiArrowLeft size={16} /> Previous
+              <FiArrowLeft size={16} />
+              Previous
             </button>
-            {registrationStep < 5 ? (
-              <button className="btn-primary glow-border next-pulse" onClick={() => setRegistrationStep(registrationStep + 1)}>
-                <span>Next: {steps[registrationStep + 1].label} <FiArrowRight size={16} /></span>
+            {currentStep < 5 ? (
+              <button className="btn-primary glow-border next-pulse" onClick={goNext}>
+                <span>Next: {steps[currentStep + 1].label} <FiArrowRight size={16} /></span>
               </button>
+
             ) : (
-              <button className="btn-primary glow-border next-pulse" onClick={submitRegistration} style={{
+              <button className="btn-primary glow-border next-pulse" onClick={handleSubmit} style={{
                 background: 'linear-gradient(135deg, #10b981, #0ea5a0)',
               }}>
                 <span><FiCheckCircle size={16} /> Submit Registration</span>
               </button>
+
             )}
+
           </div>
+
         </div>
 
-        {/* Registration ID Card */}
+
+        {/* Registration Result */}
+
         {patientId && (
+
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            style={{ maxWidth: 500, margin: '32px auto 0' }}
+            initial={{
+              opacity: 0,
+              scale: 0.8
+            }}
+
+            animate={{
+              opacity: 1,
+              scale: 1
+            }}
+
+            style={{
+              maxWidth: 500,
+              margin: '32px auto 0'
+            }}
           >
-            <div className="glass-strong" style={{
-              padding: 32, textAlign: 'center',
-              border: '1px solid rgba(14,165,160,0.3)',
-              boxShadow: '0 0 40px rgba(14,165,160,0.15)',
-              animation: 'hologram 4s ease-in-out infinite',
-            }}>
-              <div style={{ fontSize: '0.7rem', color: 'var(--teal-400)', fontFamily: 'var(--font-mono)', letterSpacing: '0.15em', marginBottom: 12 }}>
+
+            <div
+              className="glass-strong"
+              style={{
+                padding: 32,
+                textAlign: 'center',
+
+                border:
+                  '1px solid rgba(14,165,160,0.3)',
+
+                boxShadow:
+                  '0 0 40px rgba(14,165,160,0.15)',
+
+                animation:
+                  'hologram 4s ease-in-out infinite'
+              }}
+            >
+
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  color: 'var(--teal-400)',
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.15em',
+                  marginBottom: 12
+                }}
+              >
                 ✅ REGISTRATION COMPLETE
               </div>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--gray-500)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>PATIENT ID</div>
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '1.5rem', fontWeight: 700,
-                  color: 'var(--teal-300)', letterSpacing: '0.05em',
-                  textShadow: '0 0 20px rgba(14,165,160,0.4)',
-                }}>{patientId}</div>
+
+
+              <div
+                style={{
+                  marginBottom: 16
+                }}
+              >
+
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    color: 'var(--gray-500)',
+                    fontFamily: 'var(--font-mono)',
+                    marginBottom: 4
+                  }}
+                >
+                  PATIENT ID
+                </div>
+
+                <div
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    color: 'var(--teal-300)',
+                    letterSpacing: '0.05em'
+                  }}
+                >
+                  {patientId}
+                </div>
+
               </div>
+
+
               <div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--gray-500)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>REGISTRATION ID</div>
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '1.3rem', fontWeight: 700,
-                  color: 'var(--electric-300)', letterSpacing: '0.05em',
-                  textShadow: '0 0 20px rgba(59,130,246,0.4)',
-                }}>{registrationId}</div>
+
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    color: 'var(--gray-500)',
+                    fontFamily: 'var(--font-mono)',
+                    marginBottom: 4
+                  }}
+                >
+                  REGISTRATION ID
+                </div>
+
+                <div
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '1.3rem',
+                    fontWeight: 700,
+                    color: 'var(--electric-300)',
+                    letterSpacing: '0.05em'
+                  }}
+                >
+                  {registrationId}
+                </div>
+
               </div>
 
               {/* Patient-permitted status only (no doctor/clinical data) */}
@@ -439,9 +726,17 @@ export default function Registration() {
                   Back to Home
                 </button>
               </div>
+              <button className="btn-secondary" onClick={() => navigate('/patient/dashboard')} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                Continue to Patient Portal
+              </button>
             </div>
+
           </motion.div>
+
         )}
+
       </div>
     </section>
   )

@@ -23,12 +23,84 @@ export async function demoLogin(role = 'doctor') {
 }
 
 export const api = {
+  login: async (email, password) => {const data = await request('/auth/login', {method: 'POST',body: JSON.stringify({email,password})})
+  if (data?.access_token) {
+    localStorage.setItem('medikiosk_token', data.access_token)
+  }
+  if (data?.user) {
+    localStorage.setItem(
+      'medikiosk_user',
+      JSON.stringify(data.user)
+    )
+  }
+  return data},
+
+  registerStaff: async (payload) => {
+  const data = await request('/auth/register/staff', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+
+  if (data?.access_token) {
+    localStorage.setItem(
+      'medikiosk_token',
+      data.access_token
+    )
+  }
+
+  if (data?.user) {
+    localStorage.setItem(
+      'medikiosk_user',
+      JSON.stringify(data.user)
+    )
+  }
+
+  return data},
+
+  registerPatient: async (payload) => {
+  const data = await request('/auth/register/patient', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+
+  if (data?.access_token) {
+    localStorage.setItem(
+      'medikiosk_token',
+      data.access_token
+    )
+  }
+
+  if (data?.user) {
+    localStorage.setItem(
+      'medikiosk_user',
+      JSON.stringify(data.user)
+    )
+  }
+
+  return data},
+
+  getPatient: (patientCode) =>
+  request(
+    `/patients/${encodeURIComponent(patientCode)}`
+  ),
+
+getPatientHistory: (patientCode) =>
+  request(
+    `/patients/${encodeURIComponent(patientCode)}/history`
+  ),
+
   register: (payload) => request('/registrations', { method: 'POST', body: JSON.stringify(payload) }),
+  
   getRegistration: (id) => request(`/registrations/${encodeURIComponent(id)}`),
+  
   checkIn: (id) => request(`/registrations/${encodeURIComponent(id)}/check-in`, { method: 'POST' }),
+  
   todayPatients: () => request('/doctor/patients/today'),
+  
   encounter: (id) => request(`/encounters/${id}/record`),
+  
   generateSummary: (encounterId) => request('/summary/generate', { method: 'POST', body: JSON.stringify({ encounter_id: encounterId }) }),
+  
   uploadDocuments: (encounterId, files) => {
     const form = new FormData()
     form.append('encounter_id', encounterId)

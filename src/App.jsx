@@ -20,6 +20,11 @@ import TechStack from './components/TechStack'
 import DataFlow from './components/DataFlow'
 import FutureScope from './components/FutureScope'
 import Footer from './components/Footer'
+import Login from './pages/Login'
+import StaffRegister from './pages/StaffRegister'
+import PatientRegister from './pages/PatientRegister'
+import PatientDashboard from './pages/PatientDashboard'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 
 /* Full-viewport page wrapper: each page fills the screen; only the page
    itself may scroll internally if its content exceeds the viewport. */
@@ -37,7 +42,8 @@ const pageRoles = {
   doctor: 'doctor',
 }
 
-export default function App() {
+// The deck app is the home experience; teammate's auth pages stay on their own routes.
+function Home() {
   const currentPage = useStore((s) => s.currentPage)
   const setCurrentPage = useStore((s) => s.setCurrentPage)
   const role = useStore((s) => s.role)
@@ -101,5 +107,80 @@ export default function App() {
       <Navbar />
       <PageDeck pages={visiblePages} page={currentPage} setPage={setCurrentPage} />
     </>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+
+        {/* HOME (page-deck experience) */}
+        <Route path="/" element={<Home />} />
+
+        {/* Authentication */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register/staff" element={<StaffRegister />} />
+        <Route path="/register/patient" element={<PatientRegister />} />
+
+        {/* Patient */}
+        <Route
+          path="/patient/dashboard"
+          element={<PatientDashboard />}
+        />
+
+        {/* Patient case-taking */}
+        <Route
+          path="/patient/registration/personal"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/consent"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/medical"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/ayurveda"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/documents"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration/review"
+          element={<Registration />}
+        />
+        <Route
+          path="/patient/registration"
+          element={<Navigate
+                    to="/patient/registration/personal"
+                    replace
+                  />
+               }
+        />
+        {/* Receptionist */}
+        <Route
+          path="/reception/dashboard"
+          element={<ReceptionDashboard />}
+        />
+
+        {/* Doctor */}
+        <Route
+          path="/doctor/dashboard"
+          element={<DoctorDashboard />}
+        />
+
+        {/* Unknown URL */}
+        <Route
+          path="*"
+          element={<Navigate to="/" replace />}
+        />
+
+      </Routes>
+    </BrowserRouter>
   )
 }
