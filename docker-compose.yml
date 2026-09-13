@@ -1,0 +1,17 @@
+services:
+  medikiosk:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:////app/backend/data/medikiosk.db
+      JWT_SECRET: change-this-for-demo
+      CORS_ORIGINS: "*"
+      DEMO_MODE: "true"
+      STORAGE_DIR: /app/backend/storage
+    volumes:
+      - medikiosk_storage:/app/backend/storage
+      - medikiosk_db:/app/backend/data
+volumes:
+  medikiosk_storage:
+  medikiosk_db:

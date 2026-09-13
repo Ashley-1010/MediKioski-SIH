@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiSearch, FiUserCheck, FiClock, FiCheckCircle, FiActivity, FiArrowRight, FiLogOut } from 'react-icons/fi'
 import useStore from '../store/useStore'
 import { useCountUp } from '../hooks/useScrollAnimations'
+import { api, demoLogin } from '../services/api'
 
 const statusColors = {
   'registered': { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa', label: 'Registered' },
@@ -60,12 +61,39 @@ function StatCard({ stat, index }) {
 export default function ReceptionDashboard() {
   const staff = useStore((s) => s.staff)
   const patients = useStore((s) => s.patients)
+  const loadPatients = useStore((s) => s.loadPatients)
   const advanceStatus = useStore((s) => s.advanceStatus)
   const callNext = useStore((s) => s.callNext)
   const setCurrentPage = useStore((s) => s.setCurrentPage)
 
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+
+  // Hydrate from the backend when reachable; demo data retained otherwise.
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        await demoLogin('receptionist')
+        const rows = await api.todayPatients()
+        if (mounted && rows?.length) {
+          loadPatients(rows.map((r, i) => ({
+            ...r,
+            age: r.age ?? '—',
+            queueNumber: r.queueNumber ?? i + 1,
+            phone: r.phone || '—',
+            notes: r.notes || [],
+            prescriptions: r.prescriptions || [],
+            reports: r.reports || [],
+            timeline: r.timeline || [],
+          })))
+        }
+      } catch (error) {
+        console.warn('Reception API unavailable; demo data retained.', error)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
 
   const inQueue = patients.filter((p) => ['registered', 'waiting', 'checked-in'].includes(p.status))
   const flowStats = [
@@ -86,7 +114,12 @@ export default function ReceptionDashboard() {
 
   const handleCallNext = () => {
     const next = callNext()
-    if (next) setSelectedId(next.id)
+    if (!next) return
+    setSelectedId(next.id)
+    // Best-effort backend check-in; prototype state is already updated.
+    if (next.regId && ['registered', 'waiting'].includes(next.status)) {
+      api.checkIn(next.regId).catch((error) => console.warn('Check-in API failed; prototype state updated.', error))
+    }
   }
 
   return (

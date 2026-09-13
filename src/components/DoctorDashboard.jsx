@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiSearch, FiUser, FiFileText, FiArrowLeft, FiEdit3, FiCheck, FiPlus, FiPlay, FiActivity } from 'react-icons/fi'
+import { FiSearch, FiFileText, FiArrowLeft, FiEdit3, FiCheck, FiPlus, FiPlay } from 'react-icons/fi'
 import useStore from '../store/useStore'
 import { useTilt } from '../hooks/useScrollAnimations'
+import { api, demoLogin } from '../services/api'
 
 const statusColors = {
   'registered': '#3b82f6',
@@ -438,12 +439,37 @@ function PatientCard({ patient, index, onClick, onStart }) {
 export default function DoctorDashboard() {
   const staff = useStore((s) => s.staff)
   const patients = useStore((s) => s.patients)
+  const loadPatients = useStore((s) => s.loadPatients)
   const selectedPatientId = useStore((s) => s.selectedPatient)
   const setSelectedPatient = useStore((s) => s.setSelectedPatient)
   const startConsultation = useStore((s) => s.startConsultation)
 
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
+
+  // Hydrate from the backend when reachable; demo data retained otherwise.
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        await demoLogin('doctor')
+        const rows = await api.todayPatients()
+        if (mounted && rows?.length) {
+          loadPatients(rows.map((r) => ({
+            ...r,
+            age: r.age ?? '—',
+            notes: r.notes || [],
+            prescriptions: r.prescriptions || [],
+            reports: r.reports || [],
+            timeline: r.timeline || [],
+          })))
+        }
+      } catch (error) {
+        console.warn('Doctor API unavailable; demo data retained.', error)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
 
   const selectedPatient = patients.find((p) => p.id === selectedPatientId) || null
 

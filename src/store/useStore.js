@@ -1,11 +1,13 @@
 import { create } from 'zustand'
+import { api } from '../services/api'
 
 const STATUS_FLOW = ['registered', 'waiting', 'checked-in', 'in-consultation', 'completed']
 const today = () => new Date().toISOString().slice(0, 10)
 const nextQueueNumber = (patients) => patients.reduce((m, p) => Math.max(m, p.queueNumber || 0), 0) + 1
 
 // Demo registry (prototype data). New registrations are added to this list so
-// Reception and Doctor dashboards share the same live records.
+// Reception and Doctor dashboards share the same live records. When the API is
+// reachable, dashboards hydrate from the backend instead.
 export const demoPatients = [
   {
     id: 'PAT-00084721', regId: 'REG-2026-0911-0042', name: 'Ramesh Kumar', age: 52, gender: 'Male',
@@ -95,6 +97,7 @@ const useStore = create((set, get) => ({
 
   // ===== Patient registry (Registration → Reception queue → Doctor) =====
   patients: demoPatients,
+  loadPatients: (rows) => set({ patients: rows }),
 
   // Registration
   registrationStep: 0,
@@ -116,30 +119,70 @@ const useStore = create((set, get) => ({
   })),
   patientId: null,
   registrationId: null,
-  submitRegistration: () => {
+  registrationError: null,
+  isSubmitting: false,
+  submitRegistration: async () => {
     const { patientData, patients } = get()
-    const patientId = 'PAT-' + String(Math.floor(10000000 + Math.random() * 90000000))
-    const registrationId = 'REG-2026-' + String(Math.floor(100 + Math.random() * 900)) + '-' + String(Math.floor(1000 + Math.random() * 9000))
+    set({ isSubmitting: true, registrationError: null })
+    const d = patientData
+
+    // Try the real backend first; fall back to prototype IDs if unavailable.
+    let patientId, registrationId, offline = false
+    try {
+      const result = await api.register({
+        patient: {
+          full_name: d.fullName, date_of_birth: d.dob || null, gender: d.gender,
+          phone: d.phone, email: d.email, address: d.address,
+          emergency_contact_name: d.emergencyContact, emergency_contact_phone: d.emergencyPhone,
+        },
+        consent: { given: !!d.consentGiven, consent_date: d.consentDate || null },
+        clinical_history: {
+          chief_complaint: d.chiefComplaint,
+          history_present_illness: d.historyOfPresentIllness,
+          past_medical_history: d.pastMedicalHistory,
+          past_surgical_history: d.pastSurgicalHistory,
+          current_medications: d.currentMedications,
+          allergies: d.allergies,
+          family_history: d.familyHistory,
+          personal_history: d.personalHistory,
+          review_of_systems: d.reviewOfSystems,
+        },
+        ayurveda: {
+          prakriti: d.prakriti, vikriti: d.vikriti, agni: d.agni, koshta: d.koshta,
+          ahara_vihara: d.aharaVihara, dashavidha_pariksha: d.dashavidhaPariksha,
+        },
+      })
+      patientId = result.patient_id
+      registrationId = result.registration_id
+    } catch (error) {
+      // Keep the SIH prototype usable if the API is temporarily unavailable.
+      offline = true
+      patientId = 'PAT-' + String(Math.floor(10000000 + Math.random() * 90000000))
+      registrationId = 'REG-2026-' + String(Math.floor(100 + Math.random() * 900)) + '-' + String(Math.floor(1000 + Math.random() * 9000))
+      set({ registrationError: error.message })
+    }
+
     const record = {
       id: patientId,
       regId: registrationId,
-      name: patientData.fullName || 'New Patient',
-      age: patientData.dob ? Math.max(0, new Date().getFullYear() - new Date(patientData.dob).getFullYear()) : 30,
-      gender: patientData.gender || 'Other',
-      phone: patientData.phone || '—',
+      name: d.fullName || 'New Patient',
+      age: d.dob ? Math.max(0, new Date().getFullYear() - new Date(d.dob).getFullYear()) : 30,
+      gender: d.gender || 'Other',
+      phone: d.phone || '—',
       status: 'registered',
       queueNumber: nextQueueNumber(patients),
-      chiefComplaint: patientData.chiefComplaint || 'General consultation',
+      chiefComplaint: d.chiefComplaint || 'General consultation',
       vitals: { temp: '—', bp: '—', hr: 0, spo2: 0 },
-      medications: patientData.currentMedications || 'None',
-      allergies: patientData.allergies || 'None known',
-      history: patientData.pastMedicalHistory || 'No significant history',
+      medications: d.currentMedications || 'None',
+      allergies: d.allergies || 'None known',
+      history: d.pastMedicalHistory || 'No significant history',
       notes: [],
       prescriptions: [],
-      reports: (patientData.documents || []).map(d => ({ name: d.name, type: 'Document', status: 'processed' })),
-      timeline: [{ date: today(), event: 'Registered' + (patientData.chiefComplaint ? ' — ' + patientData.chiefComplaint : ''), status: 'current' }],
+      reports: (d.documents || []).map(doc => ({ name: doc.name, type: 'Document', status: 'processed' })),
+      timeline: [{ date: today(), event: 'Registered' + (d.chiefComplaint ? ' — ' + d.chiefComplaint : ''), status: 'current' }],
     }
-    set({ patientId, registrationId, patients: [record, ...patients] })
+    set({ patientId, registrationId, isSubmitting: false, patients: [record, ...patients] })
+    return { patient_id: patientId, registration_id: registrationId, offline }
   },
 
   // ===== Reception queue workflow =====

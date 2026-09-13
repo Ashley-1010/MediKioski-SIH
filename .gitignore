@@ -1,10 +1,143 @@
-node_modules
-dist
+# ==============================
+# MediKiosk - Git Ignore
+# ==============================
+
+# ---------- Node / React / Vite ----------
+node_modules/
+dist/
+build/
+.vite/
+
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+
+# ---------- Environment ----------
 .env
 .env.local
-*.log
-.DS_Store
-.vite
+.env.*.local
+.envrc
+
+# ---------- Python ----------
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*$py.class
+*.so
+
+# ---------- Python Virtual Environments ----------
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ---------- Python Packaging ----------
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ---------- PyInstaller ----------
+*.manifest
+*.spec
+
+# ---------- Python Testing / Coverage ----------
+.pytest_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.pybuilder/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.cover
+*.cover
+coverage.xml
+nosetests.xml
+.hypothesis/
+.cache/
+
+# ---------- Backend Database ----------
 *.db
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+db.sqlite3
+db.sqlite3-journal
+
+# ---------- MediKiosk Backend Storage ----------
+backend/storage/*
+!backend/storage/.gitkeep
+
+# ---------- Logs ----------
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ---------- Jupyter ----------
+.ipynb_checkpoints
+profile_default/
+
+# ---------- IDE ----------
+.vscode/
+.idea/
+.spyderproject
+.spyproject
+.ropeproject
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Temporary Files ----------
+tempCodeRunnerFile.py
+*.tmp
+*.temp
+
+# ---------- Ruff ----------
+.ruff_cache/
+
+# ---------- PDM ----------
+.pdm-python
+.pdm-build/
+
+# ---------- Pixi ----------
+.pixi
+
+# ---------- PEP 582 ----------
+__pypackages__/
+
+# ---------- Celery ----------
+celerybeat-schedule
+celerybeat.pid
+
+# ---------- Redis ----------
+*.rdb
+*.aof
+*.pid
+
+# ---------- RabbitMQ ----------
+mnesia/
+rabbitmq/
+
+# ---------- Streamlit ----------
+.streamlit/secrets.toml
