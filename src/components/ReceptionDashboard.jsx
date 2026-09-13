@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react'
-import { motion, AnimatePresence, useInView } from 'framer-motion'
-import { FiSearch, FiUserCheck, FiClock, FiCheckCircle, FiActivity, FiArrowRight } from 'react-icons/fi'
-import { demoPatients } from '../store/useStore'
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FiSearch, FiUserCheck, FiClock, FiCheckCircle, FiActivity, FiArrowRight, FiLogOut } from 'react-icons/fi'
+import useStore from '../store/useStore'
 import { useCountUp } from '../hooks/useScrollAnimations'
 
 const statusColors = {
@@ -12,14 +12,7 @@ const statusColors = {
   'completed': { bg: 'rgba(16,185,129,0.15)', color: '#34d399', label: 'Completed' },
 }
 
-const flowStats = [
-  { label: 'Registered', count: 12, icon: <FiUserCheck size={20} />, color: '#3b82f6' },
-  { label: 'Waiting', count: 5, icon: <FiClock size={20} />, color: '#f59e0b' },
-  { label: 'Checked In', count: 3, icon: <FiActivity size={20} />, color: '#0ea5a0' },
-  { label: 'In Consultation', count: 2, icon: <FiActivity size={20} />, color: '#8b5cf6' },
-  { label: 'Completed', count: 8, icon: <FiCheckCircle size={20} />, color: '#10b981' },
-]
-
+// Permitted fields only — no doctor notes, prescriptions or internal clinical data
 function StatCard({ stat, index }) {
   const [ref, count] = useCountUp(stat.count, 1200 + index * 200)
 
@@ -65,31 +58,47 @@ function StatCard({ stat, index }) {
 }
 
 export default function ReceptionDashboard() {
+  const staff = useStore((s) => s.staff)
+  const patients = useStore((s) => s.patients)
+  const advanceStatus = useStore((s) => s.advanceStatus)
+  const callNext = useStore((s) => s.callNext)
+  const setCurrentPage = useStore((s) => s.setCurrentPage)
+
   const [search, setSearch] = useState('')
-  const [patients, setPatients] = useState(demoPatients)
   const [selectedId, setSelectedId] = useState(null)
 
-  const filtered = patients.filter(p =>
-    p.regId.toLowerCase().includes(search.toLowerCase()) ||
-    p.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const inQueue = patients.filter((p) => ['registered', 'waiting', 'checked-in'].includes(p.status))
+  const flowStats = [
+    { label: 'Registered', count: patients.filter((p) => p.status === 'registered').length, icon: <FiUserCheck size={20} />, color: '#3b82f6' },
+    { label: 'Waiting', count: patients.filter((p) => p.status === 'waiting').length, icon: <FiClock size={20} />, color: '#f59e0b' },
+    { label: 'Checked In', count: patients.filter((p) => p.status === 'checked-in').length, icon: <FiActivity size={20} />, color: '#0ea5a0' },
+    { label: 'In Consultation', count: patients.filter((p) => p.status === 'in-consultation').length, icon: <FiActivity size={20} />, color: '#8b5cf6' },
+    { label: 'Completed', count: patients.filter((p) => p.status === 'completed').length, icon: <FiCheckCircle size={20} />, color: '#10b981' },
+  ]
 
-  const advanceStatus = (id) => {
-    setPatients(prev => prev.map(p => {
-      if (p.id !== id) return p
-      const order = ['registered', 'waiting', 'checked-in', 'in-consultation', 'completed']
-      const idx = order.indexOf(p.status)
-      return { ...p, status: order[Math.min(idx + 1, order.length - 1)] }
-    }))
+  const filtered = patients
+    .filter((p) =>
+      p.regId.toLowerCase().includes(search.toLowerCase()) ||
+      p.name.toLowerCase().includes(search.toLowerCase())
+    )
+    // Queue order first, then the rest by registration order
+    .sort((a, b) => (a.queueNumber || 9999) - (b.queueNumber || 9999))
+
+  const handleCallNext = () => {
+    const next = callNext()
+    if (next) setSelectedId(next.id)
   }
 
   return (
     <section id="reception" style={{ padding: 'var(--section-padding)' }}>
       <div className="container">
         <div className="section-header">
-          <div className="section-label">🖥️ RECEPTION</div>
+          <div className="section-label">🖥️ RECEPTIONIST DASHBOARD</div>
           <h2 className="section-title">Reception Control Center</h2>
-          <p className="section-subtitle">Search, check-in, and manage patient flow in real-time</p>
+          <p className="section-subtitle">
+            {staff ? `Logged in as ${staff.name} (${staff.staffId}) — ` : ''}
+            Waiting list in queue order • search & manage by Registration ID
+          </p>
         </div>
 
         {/* Patient Flow Counters with count-up */}
@@ -102,10 +111,10 @@ export default function ReceptionDashboard() {
           ))}
         </div>
 
-        {/* Search */}
+        {/* Search + Call Next */}
         <div className="glass-strong holo-shimmer" style={{ padding: 24, marginBottom: 32 }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: '1 1 280px' }}>
               <FiSearch style={{
                 position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
                 color: 'var(--gray-500)',
@@ -114,20 +123,24 @@ export default function ReceptionDashboard() {
                 className="input-field"
                 placeholder="Search by Registration ID or Patient Name..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 style={{ paddingLeft: 40 }}
               />
             </div>
             <div className="badge badge-teal" style={{ padding: '12px 20px', fontSize: '0.85rem' }}>
               {filtered.length} patients
             </div>
+            <button className="btn-primary glow-border next-pulse" onClick={handleCallNext}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>Call Next in Queue <FiArrowRight size={14} /></span>
+            </button>
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
             REGISTRATION ID → VERIFY → CHECK IN → DOCTOR QUEUE
           </p>
         </div>
 
-        {/* Patient List */}
+        {/* Patient List — queue-ordered */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filtered.map((p, i) => {
             const st = statusColors[p.status]
@@ -137,7 +150,7 @@ export default function ReceptionDashboard() {
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.05, duration: 0.4 }}
+                transition={{ delay: Math.min(i * 0.05, 0.4), duration: 0.4 }}
                 whileHover={{ x: 4 }}
                 className="glass-card"
                 style={{
@@ -147,6 +160,13 @@ export default function ReceptionDashboard() {
                 onClick={() => setSelectedId(selectedId === p.id ? null : p.id)}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                  {/* Queue number */}
+                  {p.queueNumber ? (
+                    <div className="queue-chip" title="Queue position">
+                      {p.status === 'completed' ? '✓' : `#${p.queueNumber}`}
+                    </div>
+                  ) : null}
+
                   {/* Avatar */}
                   <motion.div
                     whileHover={{ scale: 1.1, rotate: 5 }}
@@ -187,19 +207,24 @@ export default function ReceptionDashboard() {
                     {st.label}
                   </motion.span>
 
-                  {/* Action Button */}
+                  {/* Action Button — advance waiting status */}
                   {p.status !== 'completed' && (
                     <button
                       className="btn-primary"
                       style={{ padding: '8px 16px', fontSize: '0.8rem' }}
                       onClick={(e) => { e.stopPropagation(); advanceStatus(p.id) }}
                     >
-                      <span>Advance <FiArrowRight size={12} /></span>
+                      <span>
+                        {p.status === 'registered' ? 'Send to Waiting' :
+                         p.status === 'waiting' ? 'Check In' :
+                         p.status === 'checked-in' ? 'Send to Doctor' :
+                         'Mark Completed'} <FiArrowRight size={12} />
+                      </span>
                     </button>
                   )}
                 </div>
 
-                {/* Expanded Details */}
+                {/* Expanded Details — permitted patient record fields only */}
                 <AnimatePresence>
                   {selectedId === p.id && (
                     <motion.div
@@ -211,13 +236,10 @@ export default function ReceptionDashboard() {
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                         {[
                           ['Chief Complaint', p.chiefComplaint],
-                          ['Temperature', p.vitals.temp],
-                          ['Blood Pressure', p.vitals.bp],
-                          ['Heart Rate', `${p.vitals.hr} bpm`],
-                          ['SpO2', `${p.vitals.spo2}%`],
-                          ['Medications', p.medications],
+                          ['Phone', p.phone || '—'],
+                          ['Medications (self-reported)', p.medications],
                           ['Allergies', p.allergies],
-                          ['History', p.history],
+                          ['History (self-reported)', p.history],
                         ].map(([k, v]) => (
                           <div key={k} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
                             <div style={{ fontSize: '0.65rem', color: 'var(--gray-500)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 2 }}>{k}</div>
@@ -225,12 +247,23 @@ export default function ReceptionDashboard() {
                           </div>
                         ))}
                       </div>
+                      <p style={{
+                        fontSize: '0.7rem', color: 'var(--gray-500)', marginTop: 12,
+                        fontFamily: 'var(--font-mono), monospace', letterSpacing: '0.03em',
+                      }}>
+                        RESTRICTED: CLINICAL RECORDS, DOCTOR NOTES & PRESCRIPTIONS ARE DOCTOR-ONLY.
+                      </p>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </motion.div>
             )
           })}
+          {filtered.length === 0 && (
+            <div className="glass-card" style={{ padding: 32, textAlign: 'center', color: 'var(--gray-400)' }}>
+              No patients match “{search}”.
+            </div>
+          )}
         </div>
       </div>
     </section>

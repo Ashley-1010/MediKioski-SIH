@@ -282,7 +282,9 @@ function StepReview({ data }) {
 }
 
 export default function Registration() {
-  const { registrationStep, setRegistrationStep, patientData, updatePatientData, submitRegistration, patientId, registrationId } = useStore()
+  const { registrationStep, setRegistrationStep, patientData, updatePatientData, submitRegistration, patientId, registrationId, patients } = useStore()
+  const setCurrentPage = useStore((s) => s.setCurrentPage)
+  const myRecord = patients.find((p) => p.regId === registrationId)
 
   const renderStep = () => {
     const props = { data: patientData, update: updatePatientData }
@@ -348,7 +350,7 @@ export default function Registration() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Navigation */}
+          {/* Navigation — Next action is always the obvious one */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32 }}>
             <button
               className="btn-secondary"
@@ -358,11 +360,11 @@ export default function Registration() {
               <FiArrowLeft size={16} /> Previous
             </button>
             {registrationStep < 5 ? (
-              <button className="btn-primary" onClick={() => setRegistrationStep(registrationStep + 1)}>
-                <span>Next <FiArrowRight size={16} /></span>
+              <button className="btn-primary glow-border next-pulse" onClick={() => setRegistrationStep(registrationStep + 1)}>
+                <span>Next: {steps[registrationStep + 1].label} <FiArrowRight size={16} /></span>
               </button>
             ) : (
-              <button className="btn-primary" onClick={submitRegistration} style={{
+              <button className="btn-primary glow-border next-pulse" onClick={submitRegistration} style={{
                 background: 'linear-gradient(135deg, #10b981, #0ea5a0)',
               }}>
                 <span><FiCheckCircle size={16} /> Submit Registration</span>
@@ -402,6 +404,40 @@ export default function Registration() {
                   color: 'var(--electric-300)', letterSpacing: '0.05em',
                   textShadow: '0 0 20px rgba(59,130,246,0.4)',
                 }}>{registrationId}</div>
+              </div>
+
+              {/* Patient-permitted status only (no doctor/clinical data) */}
+              {myRecord && (
+                <div style={{
+                  marginTop: 20, padding: '14px 16px', borderRadius: 12,
+                  background: 'rgba(14,165,160,0.08)',
+                  border: '1px solid rgba(14,165,160,0.3)',
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--teal-400)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 6 }}>
+                    CURRENT STATUS
+                  </div>
+                  <div style={{ fontWeight: 600, color: 'var(--teal-300)', textTransform: 'capitalize' }}>
+                    {myRecord.status.replace('-', ' ')}
+                  </div>
+                  {typeof myRecord.queueNumber === 'number' && (
+                    <div style={{ fontSize: '0.82rem', color: 'var(--gray-400)', marginTop: 4 }}>
+                      You are number <strong style={{ color: 'var(--teal-300)' }}>#{myRecord.queueNumber}</strong> in the reception queue — the receptionist will call you.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
+                <button className="btn-primary glow-border next-pulse" onClick={() => setCurrentPage('my-status')} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <span>View My Status <FiArrowRight size={14} /></span>
+                </button>
+                <button className="btn-secondary" onClick={() => setCurrentPage('home')} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  Back to Home
+                </button>
               </div>
             </div>
           </motion.div>

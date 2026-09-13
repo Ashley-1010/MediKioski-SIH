@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FiArrowDown, FiPlay, FiMonitor } from 'react-icons/fi'
+import { FiChevronRight, FiPlay, FiMonitor } from 'react-icons/fi'
 import ParticleField from './ParticleField'
 import { useMouseParallax } from '../hooks/useScrollAnimations'
+import useStore from '../store/useStore'
 
 const badges = [
   { icon: '🏥', label: 'SIH 2026', sub: 'Problem 26047' },
@@ -84,6 +85,7 @@ export default function Hero() {
   const [typedLine2, setTypedLine2] = useState('')
   const [showCursor, setShowCursor] = useState(true)
   const mouseOffset = useMouseParallax(0.015)
+  const setCurrentPage = useStore((s) => s.setCurrentPage)
 
   const line1 = 'Smart Digital Patient Case-Taking & Clinical Records'
   const line2 = 'Transform patient registration, clinical case-taking, medical documents and AI-assisted summarization into one intelligent digital workflow.'
@@ -259,10 +261,10 @@ export default function Hero() {
           transition={{ delay: 1.1, duration: 0.6 }}
           style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 40 }}
         >
-          <button className="btn-primary glow-border" onClick={() => document.getElementById('registration')?.scrollIntoView({ behavior: 'smooth' })}>
+          <button className="btn-primary glow-border next-pulse" onClick={() => setCurrentPage('patient-portal')}>
             <span><FiPlay size={16} /> Start Patient Registration</span>
           </button>
-          <button className="btn-secondary" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
+          <button className="btn-secondary" onClick={() => setCurrentPage('features')}>
             <FiMonitor size={16} /> Explore Platform
           </button>
         </motion.div>
@@ -304,18 +306,23 @@ export default function Hero() {
           ))}
         </motion.div>
 
-        {/* Scroll Indicator */}
-        <motion.div
+        {/* Next-page hint */}
+        <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 2 }}
-          style={{ animation: 'float 2s ease-in-out infinite' }}
+          onClick={() => setCurrentPage('features')}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            gap: 4, animation: 'float 2s ease-in-out infinite', color: 'inherit',
+          }}
         >
           <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)', letterSpacing: '0.15em', marginBottom: 8 }}>
-            SCROLL TO EXPLORE
+            USE ARROWS OR DOTS TO EXPLORE
           </p>
-          <FiArrowDown size={20} style={{ color: 'var(--teal-400)' }} />
-        </motion.div>
+          <FiChevronRight size={20} style={{ color: 'var(--teal-400)', transform: 'rotate(90deg)' }} />
+        </motion.button>
       </div>
     </section>
   )

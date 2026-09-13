@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react'
-import { motion, AnimatePresence, useInView } from 'framer-motion'
-import { FiSearch, FiFilter, FiCalendar, FiUser, FiFileText, FiArrowLeft, FiClock, FiEdit3, FiCheck } from 'react-icons/fi'
-import { demoPatients } from '../store/useStore'
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FiSearch, FiUser, FiFileText, FiArrowLeft, FiEdit3, FiCheck, FiPlus, FiPlay, FiActivity } from 'react-icons/fi'
+import useStore from '../store/useStore'
 import { useTilt } from '../hooks/useScrollAnimations'
 
 const statusColors = {
@@ -13,22 +13,38 @@ const statusColors = {
 }
 
 function PatientRecord({ patient, onBack }) {
-  const [activeTab, setActiveTab] = useState('profile')
-  const [timeline] = useState([
-    { date: '2025-06-15', event: 'First visit — General checkup', status: 'completed' },
-    { date: '2025-08-22', event: 'Follow-up — Blood pressure monitoring', status: 'completed' },
-    { date: '2025-11-10', event: 'Emergency — Acute respiratory infection', status: 'completed' },
-    { date: '2026-09-12', event: 'Current Visit — ' + patient.chiefComplaint, status: 'current' },
-  ])
+  const addDoctorNote = useStore((s) => s.addDoctorNote)
+  const addPrescription = useStore((s) => s.addPrescription)
+  const completeConsultation = useStore((s) => s.completeConsultation)
+
+  const [activeTab, setActiveTab] = useState('encounter')
+  const [noteText, setNoteText] = useState('')
+  const [rx, setRx] = useState({ name: '', dose: '', frequency: '', duration: '' })
+
+  const timeline = patient.timeline || []
+  const completed = (patient.notes || []).length + (patient.prescriptions || []).length
 
   const tabs = [
-    { id: 'profile', label: 'Patient Profile' },
     { id: 'encounter', label: 'Current Encounter' },
-    { id: 'history', label: 'Clinical History' },
-    { id: 'timeline', label: 'Timeline' },
+    { id: 'profile', label: 'Patient Profile' },
     { id: 'reports', label: 'Medical Reports' },
+    { id: 'medicines', label: 'Medicines' },
     { id: 'notes', label: 'Doctor Notes' },
+    { id: 'history', label: 'History' },
+    { id: 'timeline', label: 'Timeline' },
   ]
+
+  const saveNote = () => {
+    if (!noteText.trim()) return
+    addDoctorNote(patient.id, noteText.trim())
+    setNoteText('')
+  }
+
+  const saveRx = () => {
+    if (!rx.name.trim()) return
+    addPrescription(patient.id, [{ ...rx }])
+    setRx({ name: '', dose: '', frequency: '', duration: '' })
+  }
 
   return (
     <motion.div initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
@@ -60,7 +76,7 @@ function PatientRecord({ patient, onBack }) {
               <span style={{ fontFamily: 'var(--font-mono)' }}>{patient.regId}</span>
             </div>
           </div>
-          <div style={{ marginLeft: 'auto' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
             <motion.span
               animate={{ boxShadow: [`0 0 0px ${statusColors[patient.status]}00`, `0 0 12px ${statusColors[patient.status]}30`, `0 0 0px ${statusColors[patient.status]}00`] }}
               transition={{ duration: 2, repeat: Infinity }}
@@ -72,6 +88,13 @@ function PatientRecord({ patient, onBack }) {
             >
               {patient.status.replace('-', ' ').toUpperCase()}
             </motion.span>
+            {(patient.status === 'checked-in' || patient.status === 'waiting') && (
+              <button className="btn-primary glow-border next-pulse" style={{
+                padding: '8px 16px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <span><FiPlay size={12} /> Start Consultation</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -98,29 +121,6 @@ function PatientRecord({ patient, onBack }) {
       <div className="glass-strong" style={{ padding: 24 }}>
         <AnimatePresence mode="wait">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
-            {activeTab === 'profile' && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                {[
-                  ['Full Name', patient.name], ['Age/Gender', `${patient.age}/${patient.gender}`],
-                  ['Patient ID', patient.id], ['Registration ID', patient.regId],
-                  ['Chief Complaint', patient.chiefComplaint], ['Temperature', patient.vitals.temp],
-                  ['Blood Pressure', patient.vitals.bp], ['Heart Rate', `${patient.vitals.hr} bpm`],
-                  ['SpO2', `${patient.vitals.spo2}%`], ['Medications', patient.medications],
-                  ['Allergies', patient.allergies], ['History', patient.history],
-                ].map(([k, v]) => (
-                  <motion.div
-                    key={k}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                    style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}
-                  >
-                    <div style={{ fontSize: '0.65rem', color: 'var(--gray-500)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 4 }}>{k}</div>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--white)' }}>{v}</div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
 
             {activeTab === 'encounter' && (
               <div>
@@ -128,7 +128,7 @@ function PatientRecord({ patient, onBack }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                   {[
                     { label: 'CHIEF COMPLAINT', value: patient.chiefComplaint, color: '#3b82f6' },
-                    { label: 'VITALS', value: `Temp: ${patient.vitals.temp}\nBP: ${patient.vitals.bp}\nHR: ${patient.vitals.hr} bpm\nSpO2: ${patient.vitals.spo2}%`, color: '#0ea5a0' },
+                    { label: 'VITALS', value: `Temp: ${patient.vitals?.temp || '—'}\nBP: ${patient.vitals?.bp || '—'}\nHR: ${patient.vitals?.hr || '—'} bpm\nSpO2: ${patient.vitals?.spo2 || '—'}%`, color: '#0ea5a0' },
                     { label: 'MEDICATIONS', value: patient.medications, color: '#8b5cf6' },
                     { label: 'ALLERGIES', value: patient.allergies, color: '#f59e0b' },
                   ].map((item, i) => (
@@ -148,6 +148,30 @@ function PatientRecord({ patient, onBack }) {
               </div>
             )}
 
+            {activeTab === 'profile' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                {[
+                  ['Full Name', patient.name], ['Age/Gender', `${patient.age}/${patient.gender}`],
+                  ['Patient ID', patient.id], ['Registration ID', patient.regId],
+                  ['Chief Complaint', patient.chiefComplaint], ['Temperature', patient.vitals?.temp || '—'],
+                  ['Blood Pressure', patient.vitals?.bp || '—'], ['Heart Rate', patient.vitals?.hr ? `${patient.vitals.hr} bpm` : '—'],
+                  ['SpO2', patient.vitals?.spo2 ? `${patient.vitals.spo2}%` : '—'], ['Medications', patient.medications],
+                  ['Allergies', patient.allergies], ['History', patient.history],
+                ].map(([k, v]) => (
+                  <motion.div
+                    key={k}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                    style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}
+                  >
+                    <div style={{ fontSize: '0.65rem', color: 'var(--gray-500)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 4 }}>{k}</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--white)' }}>{v}</div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
             {activeTab === 'timeline' && (
               <div style={{ position: 'relative', paddingLeft: 24 }}>
                 <div style={{
@@ -160,7 +184,7 @@ function PatientRecord({ patient, onBack }) {
                     key={i}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.15 }}
+                    transition={{ delay: Math.min(i * 0.15, 0.5) }}
                     style={{ position: 'relative', marginBottom: 24, paddingLeft: 20 }}
                   >
                     <motion.div
@@ -180,24 +204,35 @@ function PatientRecord({ patient, onBack }) {
                     </div>
                   </motion.div>
                 ))}
+                {timeline.length === 0 && (
+                  <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem' }}>No timeline events recorded yet.</p>
+                )}
               </div>
             )}
 
             {activeTab === 'history' && (
               <div style={{ fontSize: '0.9rem', color: 'var(--gray-300)', lineHeight: 1.8 }}>
                 <p><strong style={{ color: 'var(--teal-300)' }}>Past Medical History:</strong> {patient.history}</p>
-                <p style={{ marginTop: 8 }}><strong style={{ color: 'var(--teal-300)' }}>Previous Visits:</strong> 3 encounters in the past 12 months</p>
-                <p style={{ marginTop: 8 }}><strong style={{ color: 'var(--teal-300)' }}>Family History:</strong> Father — Hypertension, Mother — Type 2 Diabetes</p>
+                <p style={{ marginTop: 8 }}><strong style={{ color: 'var(--teal-300)' }}>Previous Encounters:</strong> {completed} recorded interactions</p>
+                <p style={{ marginTop: 8 }}><strong style={{ color: 'var(--teal-300)' }}>Allergies:</strong> {patient.allergies}</p>
+                <p style={{ marginTop: 8 }}><strong style={{ color: 'var(--teal-300)' }}>Ongoing Medications:</strong> {patient.medications}</p>
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--gray-500)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 8 }}>
+                    PREVIOUS ENCOUNTERS
+                  </div>
+                  {timeline.filter((t) => t.status === 'completed').map((t, i) => (
+                    <div key={i} className="glass" style={{ padding: '10px 14px', borderRadius: 10, marginBottom: 8, display: 'flex', gap: 12 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--gray-500)', minWidth: 90 }}>{t.date}</span>
+                      <span style={{ fontSize: '0.88rem', color: 'var(--gray-200)' }}>{t.event}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {activeTab === 'reports' && (
               <div>
-                {[
-                  { name: 'Blood Test Report (2026-08-15)', type: 'Lab Report', status: 'processed' },
-                  { name: 'Chest X-Ray (2025-11-10)', type: 'Imaging', status: 'processed' },
-                  { name: 'ECG Report (2026-09-12)', type: 'Cardiology', status: 'processing' },
-                ].map((r, i) => (
+                {(patient.reports || []).map((r, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, x: -10 }}
@@ -220,19 +255,91 @@ function PatientRecord({ patient, onBack }) {
                     </span>
                   </motion.div>
                 ))}
+                {(patient.reports || []).length === 0 && (
+                  <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem' }}>
+                    No medical reports on file — documents uploaded at registration will appear here.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'medicines' && (
+              <div>
+                <h4 style={{ color: 'var(--teal-300)', marginBottom: 16 }}>Prescribed Medicines</h4>
+                {(patient.prescriptions || []).map((p) => (
+                  <div key={p.id} className="glass-card" style={{ borderColor: 'rgba(139,92,246,0.2)', padding: 16, marginBottom: 12 }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--violet-300)', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>
+                      PRESCRIPTION • {p.date}
+                    </div>
+                    {(p.items || []).map((it, i) => (
+                      <div key={i} style={{
+                        display: 'flex', gap: 12, flexWrap: 'wrap', padding: '8px 12px',
+                        background: 'rgba(255,255,255,0.03)', borderRadius: 8, marginBottom: 6,
+                      }}>
+                        <strong style={{ fontSize: '0.9rem', color: 'var(--white)' }}>{it.name}</strong>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--gray-300)' }}>{it.dose}</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>{it.frequency}</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--gray-500)' }}>{it.duration}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {(patient.prescriptions || []).length === 0 && (
+                  <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: 16 }}>No medicines prescribed yet.</p>
+                )}
+
+                {/* Add prescription */}
+                <div className="glass" style={{ padding: 16, borderRadius: 12, marginTop: 8 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--teal-300)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', marginBottom: 12 }}>
+                    ➕ ADD MEDICINE TO PRESCRIPTION
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+                    <input className="input-field" placeholder="Medicine name" value={rx.name} onChange={(e) => setRx({ ...rx, name: e.target.value })} />
+                    <input className="input-field" placeholder="Dose (e.g. 500mg)" value={rx.dose} onChange={(e) => setRx({ ...rx, dose: e.target.value })} />
+                    <input className="input-field" placeholder="Frequency (e.g. 3x/day)" value={rx.frequency} onChange={(e) => setRx({ ...rx, frequency: e.target.value })} />
+                    <input className="input-field" placeholder="Duration (e.g. 5 days)" value={rx.duration} onChange={(e) => setRx({ ...rx, duration: e.target.value })} />
+                  </div>
+                  <button className="btn-primary glow-border next-pulse" onClick={saveRx} style={{
+                    marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', fontSize: '0.85rem',
+                  }}>
+                    <span><FiPlus size={14} /> Add Medicine</span>
+                  </button>
+                </div>
               </div>
             )}
 
             {activeTab === 'notes' && (
               <div>
-                <textarea className="input-field" rows={6} placeholder="Enter clinical notes, observations, and treatment plan..." style={{ marginBottom: 16 }} />
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button className="btn-primary" style={{ padding: '10px 20px', fontSize: '0.85rem' }}>
-                    <span><FiEdit3 size={14} /> Save Notes</span>
+                <h4 style={{ color: 'var(--teal-300)', marginBottom: 16 }}>Doctor Notes</h4>
+                {(patient.notes || []).map((n) => (
+                  <div key={n.id} className="glass" style={{ padding: '12px 16px', borderRadius: 12, marginBottom: 8 }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--gray-500)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{n.date}</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--gray-200)', lineHeight: 1.6 }}>{n.text}</div>
+                  </div>
+                ))}
+                {(patient.notes || []).length === 0 && (
+                  <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: 12 }}>No notes yet for this encounter.</p>
+                )}
+                <textarea
+                  className="input-field" rows={5}
+                  placeholder="Enter clinical notes, observations, and treatment plan..."
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  style={{ marginTop: 8, marginBottom: 16 }}
+                />
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <button className="btn-primary glow-border next-pulse" onClick={saveNote} style={{ padding: '10px 20px', fontSize: '0.85rem' }}>
+                    <span><FiEdit3 size={14} /> Save Note</span>
                   </button>
-                  <button className="btn-primary" style={{ padding: '10px 20px', fontSize: '0.85rem', background: 'linear-gradient(135deg, #10b981, #0ea5a0)' }}>
-                    <span><FiCheck size={14} /> Approve & Close</span>
-                  </button>
+                  {patient.status === 'in-consultation' && (
+                    <button
+                      className="btn-primary"
+                      onClick={() => { completeConsultation(patient.id) }}
+                      style={{ padding: '10px 20px', fontSize: '0.85rem', background: 'linear-gradient(135deg, #10b981, #0ea5a0)' }}
+                    >
+                      <span><FiCheck size={14} /> Complete Consultation</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -243,7 +350,7 @@ function PatientRecord({ patient, onBack }) {
   )
 }
 
-function PatientCard({ patient, index, onClick }) {
+function PatientCard({ patient, index, onClick, onStart }) {
   const { ref, handleMouseMove, handleMouseLeave } = useTilt(6)
   const c = statusColors[patient.status]
 
@@ -289,14 +396,14 @@ function PatientCard({ patient, index, onClick }) {
         {patient.chiefComplaint}
       </p>
       {/* Animated vitals */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
         <motion.span
           animate={{ scale: [1, 1.03, 1] }}
           transition={{ duration: 2, repeat: Infinity, delay: 0 }}
           className="badge badge-electric"
           style={{ fontSize: '0.65rem' }}
         >
-          🌡️ {patient.vitals.temp}
+          🌡️ {patient.vitals?.temp || '—'}
         </motion.span>
         <motion.span
           animate={{ scale: [1, 1.03, 1] }}
@@ -304,7 +411,7 @@ function PatientCard({ patient, index, onClick }) {
           className="badge badge-teal"
           style={{ fontSize: '0.65rem' }}
         >
-          💓 {patient.vitals.hr} bpm
+          💓 {patient.vitals?.hr ? `${patient.vitals.hr} bpm` : '—'}
         </motion.span>
         <motion.span
           animate={{ scale: [1, 1.03, 1] }}
@@ -312,19 +419,35 @@ function PatientCard({ patient, index, onClick }) {
           className="badge badge-violet"
           style={{ fontSize: '0.65rem' }}
         >
-          🫁 {patient.vitals.spo2}%
+          🫁 {patient.vitals?.spo2 ? `${patient.vitals.spo2}%` : '—'}
         </motion.span>
       </div>
+      {patient.status === 'checked-in' && (
+        <button
+          className="btn-primary glow-border next-pulse"
+          style={{ marginTop: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}
+          onClick={(e) => { e.stopPropagation(); onStart(patient) }}
+        >
+          <span><FiPlay size={12} /> Start Consultation</span>
+        </button>
+      )}
     </motion.div>
   )
 }
 
 export default function DoctorDashboard() {
+  const staff = useStore((s) => s.staff)
+  const patients = useStore((s) => s.patients)
+  const selectedPatientId = useStore((s) => s.selectedPatient)
+  const setSelectedPatient = useStore((s) => s.setSelectedPatient)
+  const startConsultation = useStore((s) => s.startConsultation)
+
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
-  const [selectedPatient, setSelectedPatient] = useState(null)
 
-  const filtered = demoPatients.filter(p => {
+  const selectedPatient = patients.find((p) => p.id === selectedPatientId) || null
+
+  const filtered = patients.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.id.toLowerCase().includes(search.toLowerCase())
     const matchesFilter = filter === 'all' || p.status === filter
@@ -347,7 +470,10 @@ export default function DoctorDashboard() {
         <div className="section-header">
           <div className="section-label">👨‍⚕️ DOCTOR DASHBOARD</div>
           <h2 className="section-title">Clinical Command Center</h2>
-          <p className="section-subtitle">Access patient records, review AI summaries, and manage clinical workflow</p>
+          <p className="section-subtitle">
+            {staff ? `Logged in as ${staff.name} (${staff.staffId}) — ` : ''}
+            Patient records, encounters, reports, prescriptions, notes & timeline
+          </p>
         </div>
 
         {/* Controls */}
@@ -357,8 +483,8 @@ export default function DoctorDashboard() {
             <input className="input-field" placeholder="Search by name or Patient ID..." value={search}
               onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 40 }} />
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {['all', 'checked-in', 'waiting', 'in-consultation', 'completed'].map(f => (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {['all', 'checked-in', 'in-consultation', 'completed', 'waiting', 'registered'].map(f => (
               <motion.button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -384,10 +510,16 @@ export default function DoctorDashboard() {
               key={p.id}
               patient={p}
               index={i}
-              onClick={() => setSelectedPatient(p)}
+              onClick={() => setSelectedPatient(p.id)}
+              onStart={(patient) => { startConsultation(patient.id); setSelectedPatient(patient.id) }}
             />
           ))}
         </div>
+        {filtered.length === 0 && (
+          <div className="glass-card" style={{ padding: 32, textAlign: 'center', color: 'var(--gray-400)' }}>
+            No patients match your search/filter.
+          </div>
+        )}
       </div>
     </section>
   )
